@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>SamuSignal Pro — Admin</title>
+<meta name="robots" content="noindex,nofollow">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="theme-color" content="#03100e">
+
+<script>
+/* ------------------------------------------------------------------
+   Any service worker registered on this origin can intercept this page
+   and serve something else. Kill it before anything else runs, so this
+   console always reflects the live file.
+   ------------------------------------------------------------------ */
+(function(){
+  if(!('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.getRegistrations().then(function(rs){
+    rs.forEach(function(r){
+      /* only unregister workers whose scope covers this page */
+      if(location.href.indexOf(r.scope) === 0) r.unregister();
+    });
+  }).catch(function(){});
+})();
+</script>
+
+<style>
+:root{--bg:#03100e;--card:#08201c;--line:#12463c;--txt:#e8f5f1;--mut:#a8f0d4;
+  --acc:#3fc9ab;--up:#12c98a;--dn:#f2545b;--warn:#e8b45a}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--txt);
+  font-family:'Courier New',Courier,monospace;font-size:13px;line-height:1.65;
+  padding:16px 12px 70px}
+.wrap{max-width:720px;margin:0 auto}
+h1{font-size:17px;letter-spacing:3px;color:var(--acc);text-align:center;margin:0 0 3px}
+.sub{text-align:center;font-size:11px;color:var(--mut);margin:0 0 18px;
+  letter-spacing:1.5px;font-weight:700}
+.card{background:var(--card);border:1px solid var(--line);border-radius:11px;
+  padding:15px;margin-bottom:14px}
+.ttl{font-size:12.5px;letter-spacing:1.8px;color:var(--acc);font-weight:800;
+  margin:0 0 12px;text-transform:uppercase;display:flex;align-items:center;gap:8px}
+.ttl .n{margin-left:auto;font-size:11.5px;color:var(--mut);font-weight:700}
+label{display:block;font-size:11.5px;font-weight:700;color:var(--acc);
+  letter-spacing:1px;margin:10px 0 5px}
+input,textarea{width:100%;background:var(--bg);border:1px solid var(--line);
+  border-radius:7px;padding:11px;color:var(--txt);font-family:inherit;
+  font-size:12.5px;font-weight:600}
+button{width:100%;background:transparent;border:1px solid var(--line);border-radius:7px;
+  padding:12px;color:var(--txt);font-family:inherit;font-size:12px;font-weight:800;
+  letter-spacing:1.2px;cursor:pointer;margin-top:10px}
+button.go{border-color:var(--acc);color:var(--acc);background:rgba(63,201,171,.08)}
+button.bad{border-color:var(--dn);color:var(--dn)}
+button.sm{padding:9px;font-size:11px;margin:0}
+.row{border-bottom:1px solid var(--line);padding:12px 0}
+.row:last-child{border-bottom:0}
+.k{display:flex;gap:10px;align-items:baseline;font-size:12.5px;margin-bottom:4px}
+.k b{color:var(--acc)}
+.k span{margin-left:auto;color:var(--mut);font-size:11px;white-space:nowrap}
+.mono{letter-spacing:.5px;word-break:break-all}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px}
+.tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;
+  font-weight:800;letter-spacing:1px}
+.tag.p{background:rgba(63,201,171,.15);color:var(--acc)}
+.tag.a{background:rgba(18,201,138,.18);color:var(--up)}
+.tag.x{background:rgba(242,84,91,.15);color:var(--dn)}
+.hint{font-size:11.5px;color:var(--mut);font-weight:600;margin:8px 0 0}
+.err{color:var(--dn);font-size:12px;font-weight:700;margin-top:8px}
+.ok{color:var(--up);font-size:12px;font-weight:700;margin-top:8px}
+.hide{display:none}
+code{background:var(--bg);padding:1px 6px;border-radius:4px;color:var(--acc)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>SAMUSIGNAL PRO</h1>
+  <p class="sub">ADMIN CONSOLE</p>
+
+  <!-- ===== one-time connection setup ===== -->
+  <div class="card hide" id="cfgCard">
+    <p class="ttl">Connect</p>
+    <p class="hint" style="margin-top:0">Enter these once. They are stored on this
+    device only, so this page works from any folder or repository.</p>
+    <label>Firebase Database URL</label>
+    <input id="cDb" placeholder="https://....firebasedatabase.app">
+    <label>Firebase Web API key</label>
+    <input id="cKey" placeholder="AIzaSy...">
+    <button class="go" onclick="saveCfg()">SAVE</button>
+    <p class="err" id="cfgErr"></p>
+  </div>
+
+  <!-- ===== login ===== -->
+  <div class="card hide" id="loginCard">
+    <p class="ttl">Sign In</p>
+    <label>Admin email</label>
+    <input id="em" type="email" autocomplete="username">
+    <label>Password</label>
+    <input id="pw" type="password" autocomplete="current-password">
+    <button class="go" onclick="login()">SIGN IN</button>
+    <p class="err" id="loginErr"></p>
+    <button class="sm" style="margin-top:14px" onclick="editCfg()">Change connection settings</button>
+  </div>
+
+  <!-- ===== main ===== -->
+  <div id="main" class="hide">
+    <div class="card">
+      <p class="ttl">Pending Payments <span class="n" id="nReq">0</span></p>
+      <div id="reqBox"></div>
+      <button class="sm" style="margin-top:12px" onclick="loadAll()">⟳ REFRESH</button>
+    </div>
+
+    <div class="card">
+      <p class="ttl">Manual Activation</p>
+      <label>Device ID</label>
+      <input id="mDev" class="mono" placeholder="B9GSBHJBN9KF">
+      <button class="go" onclick="activate(val('mDev'),'','')">ACTIVATE THIS DEVICE</button>
+      <p class="hint">Use this when someone paid you outside the app, or their
+      request did not come through. Copy the Device ID exactly as the app shows it.</p>
+    </div>
+
+    <div class="card">
+      <p class="ttl">Support Inbox <span class="n" id="nSup">0</span></p>
+      <div id="supBox"></div>
+    </div>
+
+    <div class="card">
+      <p class="ttl">Device Lookup</p>
+      <label>Device ID or restore code</label>
+      <input id="qDev" class="mono">
+      <button onclick="lookup()">LOOK UP</button>
+      <div id="lookBox"></div>
+    </div>
+
+    <button class="bad" onclick="logout()">SIGN OUT</button>
+    <p class="hint" style="text-align:center">Connected to <span class="mono" id="whichDb"></span></p>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const val = id => ($(id).value || '').trim();
+
+/* ---------------- connection settings ---------------- */
+/* Read config.js if it happens to be next door, otherwise fall back to what
+   was entered on this device. That keeps this file portable. */
+let CFG = {
+  db:     localStorage.getItem('adm_db')  || (window.SAMU_CONFIG && window.SAMU_CONFIG.db)     || '',
+  apiKey: localStorage.getItem('adm_key') || (window.SAMU_CONFIG && window.SAMU_CONFIG.apiKey) || ''
+};
+
+function saveCfg(){
+  const db = val('cDb').replace(/\/+$/,''), key = val('cKey');
+  $('cfgErr').textContent = '';
+  if(!/^https:\/\/.+(firebasedatabase\.app|firebaseio\.com)$/i.test(db)){
+    $('cfgErr').textContent = 'That database URL looks wrong. It ends in .firebasedatabase.app or .firebaseio.com';
+    return;
+  }
+  if(!/^AIza/.test(key)){
+    $('cfgErr').textContent = 'Firebase web API keys start with "AIza".';
+    return;
+  }
+  localStorage.setItem('adm_db', db);
+  localStorage.setItem('adm_key', key);
+  CFG = {db, apiKey:key};
+  route();
+}
+function editCfg(){
+  $('cDb').value = CFG.db; $('cKey').value = CFG.apiKey;
+  $('loginCard').classList.add('hide');
+  $('main').classList.add('hide');
+  $('cfgCard').classList.remove('hide');
+}
+
+/* ---------------- session, with automatic renewal ---------------- */
+let TOKEN   = sessionStorage.getItem('adm_tok') || '';
+let REFRESH = sessionStorage.getItem('adm_ref') || '';
+let EXPIRES = +sessionStorage.getItem('adm_exp') || 0;
+
+function saveSession(id, ref, ttl){
+  TOKEN = id;
+  if(ref) REFRESH = ref;
+  EXPIRES = Date.now() + ((+ttl || 3600) * 1000);
+  sessionStorage.setItem('adm_tok', TOKEN);
+  sessionStorage.setItem('adm_ref', REFRESH);
+  sessionStorage.setItem('adm_exp', String(EXPIRES));
+}
+function clearSession(){
+  TOKEN = REFRESH = ''; EXPIRES = 0;
+  ['adm_tok','adm_ref','adm_exp'].forEach(k => sessionStorage.removeItem(k));
+}
+
+async function renew(){
+  if(!REFRESH) return false;
+  try{
+    const r = await fetch('https://securetoken.googleapis.com/v1/token?key=' + CFG.apiKey, {
+      method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body:'grant_type=refresh_token&refresh_token=' + encodeURIComponent(REFRESH)
+    });
+    const j = await r.json();
+    if(!r.ok || !j.id_token) return false;
+    saveSession(j.id_token, j.refresh_token, j.expires_in);
+    return true;
+  }catch(e){ return false }
+}
+
+function dbUrl(path){
+  return CFG.db.replace(/\/+$/,'') + '/' + path + '.json?auth=' + encodeURIComponent(TOKEN);
+}
+async function call(path, opts){
+  if(!TOKEN || Date.now() > EXPIRES - 60000) await renew();
+  let r = await fetch(dbUrl(path), opts);
+  if(r.status === 401 && await renew()) r = await fetch(dbUrl(path), opts);
+  if(r.status === 401){ sessionOver(); throw new Error('Session expired — sign in again') }
+  if(!r.ok) throw new Error('HTTP ' + r.status);
+  return r.json();
+}
+const JH = {'Content-Type':'application/json'};
+const get   = p     => call(p, {cache:'no-store'});
+const patch = (p,b) => call(p, {method:'PATCH', headers:JH, body:JSON.stringify(b)});
+const put   = (p,b) => call(p, {method:'PUT',   headers:JH, body:JSON.stringify(b)});
+const del   = p     => call(p, {method:'DELETE'});
+
+function sessionOver(){
+  clearSession();
+  $('main').classList.add('hide');
+  $('loginCard').classList.remove('hide');
+  $('loginErr').textContent = 'Your session expired. Sign in again.';
+}
+
+async function login(){
+  const e = val('em'), p = $('pw').value;
+  $('loginErr').textContent = '';
+  try{
+    const r = await fetch('https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=' + CFG.apiKey, {
+      method:'POST', headers:JH,
+      body: JSON.stringify({email:e, password:p, returnSecureToken:true})
+    });
+    const j = await r.json();
+    if(!r.ok) throw new Error((j.error && j.error.message) || 'Sign in failed');
+    saveSession(j.idToken, j.refreshToken, j.expiresIn);
+    show(); loadAll();
+  }catch(err){
+    $('loginErr').textContent = /INVALID/.test(err.message)
+      ? 'Wrong email or password.' : err.message;
+  }
+}
+function logout(){ clearSession(); location.reload() }
+
+function show(){
+  $('cfgCard').classList.add('hide');
+  $('loginCard').classList.add('hide');
+  $('main').classList.remove('hide');
+  $('whichDb').textContent = CFG.db.replace(/^https:\/\//,'').split('.')[0];
+}
+function route(){
+  if(!CFG.db || !CFG.apiKey){ editCfg(); return }
+  if(TOKEN && REFRESH){ show(); loadAll() }
+  else { $('cfgCard').classList.add('hide'); $('loginCard').classList.remove('hide') }
+}
+
+/* ---------------- helpers ---------------- */
+const t12 = d => new Date(d).toLocaleString(undefined,
+  {day:'2-digit', month:'short', hour:'numeric', minute:'2-digit'});
+const esc = t => String(t == null ? '' : t)
+  .replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+function makeCode(){
+  const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let c = ''; for(let i=0;i<12;i++) c += A[Math.floor(Math.random()*A.length)];
+  return c;
+}
+
+/* ---------------- actions ---------------- */
+async function activate(dev, reqId, name){
+  dev = (dev || '').trim().toUpperCase();
+  if(dev.length < 8){ alert('Enter a valid Device ID.'); return }
+  if(!confirm('Activate lifetime licence for\n\n' + dev + (name ? '\n(' + name + ')' : ''))) return;
+  try{
+    const existing = await get('devices/' + dev).catch(()=>null);
+    if(!existing && !confirm(
+        'No device with that ID has ever opened the app.\n\n' + dev +
+        '\n\nCheck for a typo. Activate anyway?')) return;
+
+    const rc = (existing && existing.restoreCode) || makeCode();
+    await patch('devices/' + dev, {
+      status:'active', activatedAt: Date.now(), restoreCode: rc, plan:'lifetime'
+    });
+    await put('restore/' + rc, dev);
+    if(reqId) await patch('requests/' + reqId, {status:'done', doneAt:Date.now(), restoreCode:rc});
+    alert('Activated.\n\nRestore code: ' + rc +
+          '\n\nThe app unlocks by itself within an hour, or instantly if the user taps CHECK NOW.');
+    loadAll();
+  }catch(e){ alert('Failed: ' + e.message) }
+}
+
+async function revoke(dev){
+  if(!confirm('Revoke the licence on\n\n' + dev + '\n\nThe app will lock at the next check.')) return;
+  try{
+    const rec = await get('devices/' + dev);
+    if(rec && rec.restoreCode) await del('restore/' + rec.restoreCode).catch(()=>{});
+    await patch('devices/' + dev, {status:'revoked', revokedAt: Date.now()});
+    alert('Revoked.');
+    loadAll(); if(val('qDev')) lookup();
+  }catch(e){ alert('Failed: ' + e.message) }
+}
+
+async function reject(id){
+  if(!confirm('Mark this request as rejected?')) return;
+  try{ await patch('requests/' + id, {status:'rejected', doneAt:Date.now()}); loadAll() }
+  catch(e){ alert('Failed: ' + e.message) }
+}
+
+async function reply(id){
+  const t = prompt('Reply to this message:');
+  if(!t) return;
+  try{ await patch('support/' + id, {reply:t, repliedAt:Date.now(), status:'closed'}); loadAll() }
+  catch(e){ alert('Failed: ' + e.message) }
+}
+
+/* ---------------- rendering ---------------- */
+async function loadAll(){
+  try{
+    const [reqs, sup] = await Promise.all([
+      get('requests').catch(()=>null),
+      get('support').catch(()=>null)
+    ]);
+
+    const pend = Object.entries(reqs||{})
+      .filter(([,v]) => v && v.status === 'pending')
+      .sort((a,b) => (b[1].at||0) - (a[1].at||0));
+    $('nReq').textContent = pend.length;
+    $('reqBox').innerHTML = pend.length ? pend.map(([id,v]) => `
+      <div class="row">
+        <div class="k"><b>${esc(v.name) || 'Unnamed'}</b><span>${t12(v.at)}</span></div>
+        <div class="k mono" style="font-size:12px">${esc(v.deviceCode)}</div>
+        <div class="k" style="font-size:12px">Txn <b>${esc(v.txn)}</b></div>
+        ${v.contact ? `<div class="k" style="font-size:12px">${esc(v.contact)}</div>` : ''}
+        ${v.source  ? `<div class="k"><span class="tag p">${esc(v.source)}</span></div>` : ''}
+        <div class="g2">
+          <button class="go sm" onclick="activate('${esc(v.deviceCode)}','${esc(id)}','${esc(v.name)}')">ACTIVATE</button>
+          <button class="bad sm" onclick="reject('${esc(id)}')">REJECT</button>
+        </div>
+      </div>`).join('') : '<p class="hint">No pending payments.</p>';
+
+    const open = Object.entries(sup||{})
+      .filter(([,v]) => v && v.status === 'open')
+      .sort((a,b) => (b[1].at||0) - (a[1].at||0));
+    $('nSup').textContent = open.length;
+    $('supBox').innerHTML = open.length ? open.map(([id,v]) => `
+      <div class="row">
+        <div class="k"><b>${esc(v.topic)}</b><span>${t12(v.at)}</span></div>
+        <div class="k mono" style="font-size:12px">${esc(v.deviceCode)}</div>
+        <p class="hint">${esc(v.message)}</p>
+        ${v.contact ? `<div class="k" style="font-size:12px">${esc(v.contact)}</div>` : ''}
+        <button class="go sm" style="margin-top:9px" onclick="reply('${esc(id)}')">REPLY</button>
+      </div>`).join('') : '<p class="hint">No open messages.</p>';
+  }catch(e){
+    $('reqBox').innerHTML = '<p class="err">' + esc(e.message) + '</p>';
+  }
+}
+
+async function lookup(){
+  const q = val('qDev').toUpperCase();
+  if(!q) return;
+  $('lookBox').innerHTML = '<p class="hint">Looking up…</p>';
+  try{
+    let dev = q;
+    const owner = await get('restore/' + q).catch(()=>null);
+    if(owner) dev = owner;
+    const r = await get('devices/' + dev);
+    if(!r){ $('lookBox').innerHTML = '<p class="err">No device with that ID.</p>'; return }
+    const seats = Object.keys(r.seats || {}).length;
+    const tag = r.status === 'active' ? 'a' : (r.status === 'revoked' ? 'x' : 'p');
+    $('lookBox').innerHTML = `
+      <div class="row">
+        <div class="k"><b class="mono">${esc(dev)}</b><span class="tag ${tag}">${esc(r.status)}</span></div>
+        ${r.createdAt   ? `<div class="k" style="font-size:12px">Created ${t12(r.createdAt)}</div>` : ''}
+        ${r.trialEnds   ? `<div class="k" style="font-size:12px">Trial ends ${t12(r.trialEnds)}</div>` : ''}
+        ${r.activatedAt ? `<div class="k" style="font-size:12px">Activated ${t12(r.activatedAt)}</div>` : ''}
+        ${r.restoreCode ? `<div class="k mono" style="font-size:12px">Restore <b>${esc(r.restoreCode)}</b></div>` : ''}
+        <div class="k" style="font-size:12px">Devices used ${seats + 1} of 4</div>
+        ${r.fp ? `<div class="k" style="font-size:12px">Fingerprint ${esc(r.fp)}</div>` : ''}
+        <div class="g2">
+          ${r.status !== 'active'
+            ? `<button class="go sm" onclick="activate('${esc(dev)}','','')">ACTIVATE</button>` : ''}
+          ${r.status === 'active'
+            ? `<button class="bad sm" onclick="revoke('${esc(dev)}')">REVOKE</button>` : ''}
+        </div>
+      </div>`;
+  }catch(e){ $('lookBox').innerHTML = '<p class="err">' + esc(e.message) + '</p>' }
+}
+
+route();
+</script>
+</body>
+</html>
