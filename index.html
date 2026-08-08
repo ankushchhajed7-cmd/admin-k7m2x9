@@ -8,7 +8,13 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="theme-color" content="#03100e">
+<meta name="theme-color" content="#140e03">
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" href="./favicon.png">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="SPA">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
 <script>
 /* ------------------------------------------------------------------
@@ -18,18 +24,26 @@
    ------------------------------------------------------------------ */
 (function(){
   if(!('serviceWorker' in navigator)) return;
+  var mine = new URL('./', location.href).href;
   navigator.serviceWorker.getRegistrations().then(function(rs){
     rs.forEach(function(r){
-      /* only unregister workers whose scope covers this page */
-      if(location.href.indexOf(r.scope) === 0) r.unregister();
+      /* Remove any FOREIGN worker that covers this page — a worker from a
+         parent path could otherwise serve a stale copy of this console.
+         Our own worker (scoped to this folder) is left alone. */
+      if(location.href.indexOf(r.scope) === 0 && r.scope !== mine) r.unregister();
     });
   }).catch(function(){});
+
+  /* our own worker: makes the console installable, never caches the page */
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('./sw.js').catch(function(){});
+  });
 })();
 </script>
 
 <style>
-:root{--bg:#03100e;--card:#08201c;--line:#12463c;--txt:#e8f5f1;--mut:#a8f0d4;
-  --acc:#3fc9ab;--up:#12c98a;--dn:#f2545b;--warn:#e8b45a}
+:root{--bg:#140e03;--card:#241a06;--line:#4a3714;--txt:#f5eddc;--mut:#e0c48a;
+  --acc:#e8b45a;--up:#12c98a;--dn:#f2545b;--warn:#e8b45a}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{margin:0;background:var(--bg);color:var(--txt);
   font-family:'Courier New',Courier,monospace;font-size:13px;line-height:1.65;
@@ -51,7 +65,7 @@ input,textarea{width:100%;background:var(--bg);border:1px solid var(--line);
 button{width:100%;background:transparent;border:1px solid var(--line);border-radius:7px;
   padding:12px;color:var(--txt);font-family:inherit;font-size:12px;font-weight:800;
   letter-spacing:1.2px;cursor:pointer;margin-top:10px}
-button.go{border-color:var(--acc);color:var(--acc);background:rgba(63,201,171,.08)}
+button.go{border-color:var(--acc);color:var(--acc);background:rgba(232,180,90,.10)}
 button.bad{border-color:var(--dn);color:var(--dn)}
 button.sm{padding:9px;font-size:11px;margin:0}
 .row{border-bottom:1px solid var(--line);padding:12px 0}
@@ -63,7 +77,7 @@ button.sm{padding:9px;font-size:11px;margin:0}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px}
 .tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;
   font-weight:800;letter-spacing:1px}
-.tag.p{background:rgba(63,201,171,.15);color:var(--acc)}
+.tag.p{background:rgba(232,180,90,.16);color:var(--acc)}
 .tag.a{background:rgba(18,201,138,.18);color:var(--up)}
 .tag.x{background:rgba(242,84,91,.15);color:var(--dn)}
 .hint{font-size:11.5px;color:var(--mut);font-weight:600;margin:8px 0 0}
@@ -77,6 +91,8 @@ code{background:var(--bg);padding:1px 6px;border-radius:4px;color:var(--acc)}
 <div class="wrap">
   <h1>SAMUSIGNAL PRO</h1>
   <p class="sub">ADMIN CONSOLE</p>
+  <button class="go hide" id="btnInstall" style="margin-bottom:14px"
+          onclick="doInstall()">⬇ INSTALL AS APP</button>
 
   <!-- ===== one-time connection setup ===== -->
   <div class="card hide" id="cfgCard">
@@ -389,6 +405,32 @@ async function lookup(){
         </div>
       </div>`;
   }catch(e){ $('lookBox').innerHTML = '<p class="err">' + esc(e.message) + '</p>' }
+}
+
+/* ---------------- install as an app ---------------- */
+let deferred = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferred = e;
+  $('btnInstall').classList.remove('hide');
+});
+window.addEventListener('appinstalled', () => {
+  deferred = null;
+  $('btnInstall').classList.add('hide');
+});
+async function doInstall(){
+  if(deferred){
+    deferred.prompt();
+    await deferred.userChoice;
+    deferred = null;
+    $('btnInstall').classList.add('hide');
+    return;
+  }
+  alert('To install:\n\nOpen your browser menu and choose "Add to Home screen".');
+}
+/* already running as an installed app? then hide the button */
+if(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches){
+  const b = $('btnInstall'); if(b) b.classList.add('hide');
 }
 
 route();
