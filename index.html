@@ -321,6 +321,21 @@ async function revoke(dev){
   }catch(e){ alert('Failed: ' + e.message) }
 }
 
+/* Receipts live under their own path so the request list stays light.
+   Fetch one only when the admin actually wants to look at it. */
+async function showReceipt(id){
+  const box = $('rc_' + id);
+  if(!box) return;
+  if(box.innerHTML){ box.innerHTML = ''; return }   /* tap again to hide */
+  box.innerHTML = '<p class="hint">Loading\u2026</p>';
+  try{
+    const b64 = await get('receipts/' + id);
+    box.innerHTML = b64
+      ? `<img src="data:image/jpeg;base64,${b64}" style="width:100%;border-radius:6px;margin-top:8px;display:block">`
+      : '<p class="hint">No screenshot was attached.</p>';
+  }catch(e){ box.innerHTML = '<p class="err">' + esc(e.message) + '</p>' }
+}
+
 async function reject(id){
   if(!confirm('Mark this request as rejected?')) return;
   try{ await patch('requests/' + id, {status:'rejected', doneAt:Date.now()}); loadAll() }
@@ -353,6 +368,9 @@ async function loadAll(){
         <div class="k" style="font-size:12px">Txn <b>${esc(v.txn)}</b></div>
         ${v.contact ? `<div class="k" style="font-size:12px">${esc(v.contact)}</div>` : ''}
         ${v.source  ? `<div class="k"><span class="tag p">${esc(v.source)}</span></div>` : ''}
+        ${v.receipt ? `<button class="sm" style="margin-top:8px;width:100%"
+            onclick="showReceipt('${esc(id)}')">\ud83d\udcf7 VIEW SCREENSHOT</button>
+          <div id="rc_${esc(id)}"></div>` : ''}
         <div class="g2">
           <button class="go sm" onclick="activate('${esc(v.deviceCode)}','${esc(id)}','${esc(v.name)}')">ACTIVATE</button>
           <button class="bad sm" onclick="reject('${esc(id)}')">REJECT</button>
