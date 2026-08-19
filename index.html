@@ -336,6 +336,19 @@ async function showReceipt(id){
   }catch(e){ box.innerHTML = '<p class="err">' + esc(e.message) + '</p>' }
 }
 
+/* Clear a fingerprint claim so a device can take its trial. Used when the
+   fingerprint collided with someone else's phone. */
+async function freeTrial(fp){
+  if(!fp){ alert('No fingerprint on this device record.'); return }
+  if(!confirm('Let this device start a fresh trial?\n\nFingerprint: ' + fp +
+              '\n\nOnly do this if you believe the block was wrong.')) return;
+  try{
+    await del('fingerprints/' + fp);
+    alert('Done. Ask them to reopen the app \u2014 the trial will start.');
+    if(val('qDev')) lookup();
+  }catch(e){ alert('Failed: ' + e.message) }
+}
+
 async function reject(id){
   if(!confirm('Mark this request as rejected?')) return;
   try{ await patch('requests/' + id, {status:'rejected', doneAt:Date.now()}); loadAll() }
@@ -414,12 +427,16 @@ async function lookup(){
         ${r.activatedAt ? `<div class="k" style="font-size:12px">Activated ${t12(r.activatedAt)}</div>` : ''}
         ${r.restoreCode ? `<div class="k mono" style="font-size:12px">Restore <b>${esc(r.restoreCode)}</b></div>` : ''}
         <div class="k" style="font-size:12px">Devices used ${seats + 1} of 4</div>
-        ${r.fp ? `<div class="k" style="font-size:12px">Fingerprint ${esc(r.fp)}</div>` : ''}
+        ${r.fp ? `<div class="k mono" style="font-size:11.5px">Fingerprint ${esc(r.fp)}</div>` : ''}
+        ${r.status === 'used' ? `<div class="k"><span class="tag x">trial already used</span></div>` : ''}
+        ${r.prior ? `<div class="k mono" style="font-size:11.5px">Earlier code ${esc(r.prior)}</div>` : ''}
         <div class="g2">
           ${r.status !== 'active'
             ? `<button class="go sm" onclick="activate('${esc(dev)}','','')">ACTIVATE</button>` : ''}
           ${r.status === 'active'
             ? `<button class="bad sm" onclick="revoke('${esc(dev)}')">REVOKE</button>` : ''}
+          ${r.fp && r.status !== 'active'
+            ? `<button class="sm" onclick="freeTrial('${esc(r.fp)}')">ALLOW NEW TRIAL</button>` : ''}
         </div>
       </div>`;
   }catch(e){ $('lookBox').innerHTML = '<p class="err">' + esc(e.message) + '</p>' }
